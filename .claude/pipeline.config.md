@@ -11,19 +11,19 @@ kit was distilled from; change the values to match your repo.
 ---
 
 ## Project
-- **project_name:** `MyApp`
-- **persona:** `You are the lead engineer for the MyApp project. You design, implement, and validate the work directly.`
+- **project_name:** `WeatherApp.NestJS`
+- **persona:** `You are the lead full-stack engineer for the <ProjectName> project, working across an Angular front end, a NestJS/Node.js API, and a PostgreSQL database. You design, implement, test, and validate the work directly, following the repo's existing conventions and keeping type safety, clear contracts between the API and the client, and database integrity in mind.`
   - One line the kickoff prompt opens with. Match your repo's role language if it has one.
 
 ## Artifact paths
-| key | value (edit) | example (Bryk) |
+| key | value (edit)
 |---|---|---|
-| **roadmap** | `ROADMAP.md` | `ROADMAP.md` |
-| **tasks_doc** | `docs/tasks/Tasks-{phase}-{n}.md` | `md/Tasks-{phase}-{n}.md` |
-| **impl_doc** | `docs/tasks/Impl-{phase}-{n}.md` | `md/Impl-{phase}-{n}.md` |
-| **prompt_doc** | `docs/prompts/Phase-{phase}-Prompt.md` | `md/prompts/Phase-{phase}-Prompt.md` |
-| **handoff_dir** | `docs/handoffs/` | `md/handoffs/` |
-| **decisions_dir** | `docs/decisions/` _(leave blank if you keep no ADRs)_ | `md/decisions/` |
+| **roadmap** | `ROADMAP.md`
+| **tasks_doc** | `docs/tasks/Tasks-{phase}-{n}.md`
+| **impl_doc** | `docs/tasks/Impl-{phase}-{n}.md`
+| **prompt_doc** | `docs/prompts/Phase-{phase}-Prompt.md`
+| **handoff_dir** | `docs/handoffs/`
+| **decisions_dir** | `docs/decisions/`
 
 ## Conventions source
 Files the agents read to learn this repo's coding rules, so generated specs match house style.
@@ -33,9 +33,9 @@ Files the agents read to learn this repo's coding rules, so generated specs matc
 
 ## Build / verify commands
 Used in generated success criteria and the kickoff prompt's session checklist.
-- **build_command:** `<e.g. dotnet build / npm run build / cargo build / make>`
-- **test_command:** `<e.g. dotnet test / npm test / pytest / go test ./...>`
-- **extra_checks:** `<optional, e.g. lint/typecheck command; leave blank if none>`
+- **build_command:** `npm run build`
+- **test_command:** `npm test`
+- **extra_checks:** `npm run lint`
 
 ## Commit policy
 - **commit_style:** `conventional`  _(feat: / fix: / refactor: / docs: / chore:)_
