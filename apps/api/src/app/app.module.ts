@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthController } from './health/health.controller';
 import { PrismaModule } from './prisma/prisma.module';
+import { UsersModule } from './users/users.module';
 import { WeatherModule } from './weather/weather.module';
 
 @Module({
@@ -11,6 +12,7 @@ import { WeatherModule } from './weather/weather.module';
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     WeatherModule,
+    UsersModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],
