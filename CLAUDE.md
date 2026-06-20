@@ -25,9 +25,6 @@ npm i -g @nestjs/cli      # or use: npx @nestjs/cli ...
 nest new .                # scaffold into this directory
 ```
 
-The package manager is not yet decided — the `.gitignore` carries the default Nest template's
-references to npm, pnpm, and yarn. Pick one when scaffolding and remove this note.
-
 ## Expected commands (once scaffolded)
 
 These are the conventional NestJS scripts a `nest new` project ships with. Verify against the

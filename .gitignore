@@ -1,24 +1,71 @@
-# Nestjs specific
-/dist
-/node_modules
-/build
-/tmp
+# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
-# Logs
+# compiled output
+dist
+tmp
+out-tsc
+
+# dependencies
+node_modules
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# misc
+/.sass-cache
+/connect.lock
+/coverage
+/libpeerconnection.log
+npm-debug.log
+yarn-error.log
+testem.log
+/typings
+
+# System Files
+.DS_Store
+Thumbs.db
+
+.nx/cache
+.nx/workspace-data
+.nx/migrate-runs
+
+# Angular cache
+/.angular/cache
+
+.claude/worktrees
+.claude/settings.local.json
+
+# --- Preserved from the original WeatherApp.NestJS .gitignore ---
+
+# compiled output (original)
+/build
+
+# logs (original)
 logs
 *.log
-npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
-yarn-error.log*
 lerna-debug.log*
 
-# dotenv environment variable files
+# dotenv environment variable files (original — required by Task 0-4)
 .env
 .env.development
 .env.test
 .env.production
 
-# temp directory
+# temp directories (original)
 .temp
 .tmp
