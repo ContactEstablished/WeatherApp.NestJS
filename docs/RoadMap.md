@@ -260,9 +260,67 @@ import the same interfaces, so the API contract can never silently drift.
 - Create `docker-compose.yml` with a `postgres:16` service, and `.env` (`DATABASE_URL`, `OPENWEATHER_API_KEY`, `PORT=3000`).
 
 ### Phase 1 — Shared contract (`libs/shared-types`) (½ day)
-- Copy the §0.3 interfaces verbatim. Add request DTO types: `UpdatePreferencesRequest`,
-  `SaveLocationRequest`, `UpdateSavedLocationRequest`, `ReorderSavedLocationsRequest`.
-- Export a barrel (`index.ts`). Both `apps/web` and `apps/api` import from `@nimbus/shared-types`.
+
+**Goal.** Stand up `libs/shared-types` as the single, compile-time source of truth for the REST
+contract — the nine §0.3 response interfaces plus the four request DTOs — so `apps/web` and `apps/api`
+import identical types from `@nimbus/shared-types` and the contract can never silently drift.
+
+**Scope (in scope).**
+- **Response types — lift §0.3 verbatim.** All nine declarations, byte-for-byte from
+  `src/WeatherApp.Client/src/types/weather.ts` (they already match the camelCase JSON): `UnitSystem`,
+  `WeatherDashboard`, `CurrentWeather`, `HourlyForecast`, `DailyForecast`, `WeatherPreview`,
+  `WeatherMetric`, `LocationSuggestion`, `UserPreferences`.
+- **Request DTO types — derived from the §0.2 endpoint bodies.** Add four interfaces matching the
+  bodies of the mutating endpoints exactly:
+  - `UpdatePreferencesRequest` → endpoint #5 `PUT /api/users/{userId}/preferences` body `{ unitSystem }` (reuse `UnitSystem`).
+  - `SaveLocationRequest` → endpoint #7 `POST /api/users/{userId}/locations` body `{ name, region, country, latitude, longitude, isDefault? }` (`isDefault` optional).
+  - `UpdateSavedLocationRequest` → endpoint #8 `PUT /api/users/{userId}/locations/{id}` — "same body as POST"; type as `SaveLocationRequest` (alias or extend, no new fields).
+  - `ReorderSavedLocationsRequest` → endpoint #11 `PUT /api/users/{userId}/locations/reorder` body `{ locationIds: number[] }`.
+- **Barrel export.** A single `index.ts` re-exporting every type so both apps import from
+  `@nimbus/shared-types` (the path alias scaffolded in Phase 0).
+
+> **Constraint — pure TypeScript types only.** This library carries `type`/`interface` declarations
+> and nothing else: no Angular, Nest, or Prisma imports, no `class-validator` decorators, no runtime
+> code. Validation and runtime concerns belong to Phase 3 (see Out of scope).
+
+**Decisions needed.**
+- **How to type `UpdateSavedLocationRequest` against `SaveLocationRequest`** (the bodies are
+  identical). *Recommendation:* `export type UpdateSavedLocationRequest = SaveLocationRequest;` — a
+  plain alias keeps the "same body" invariant from §0.2 self-documenting and impossible to drift; only
+  switch to `extends` if a field genuinely diverges later.
+- **Whether `@nimbus` is the final npm scope** for the alias `@nimbus/shared-types`. *Recommendation:*
+  keep `@nimbus` — it matches §1 and the `nimbus-weather` workspace name; this only needs confirming
+  if the published package scope differs.
+- **Whether request DTOs live in their own file** (e.g. `requests.ts`) or alongside the lifted
+  response types. *Recommendation:* a separate `requests.ts` re-exported through the barrel — keeps the
+  §0.3 block a clean verbatim copy and the §0.2-derived DTOs visibly distinct.
+
+**Out of scope (deferred).**
+- **Runtime validation** — `class-validator` / `class-transformer` DTO classes and the global
+  `ValidationPipe` live in **Phase 3 (Backend)**, not here.
+- **Prisma models / DB types** — `prisma/schema.prisma` and the generated client are **Phase 2
+  (Database + Prisma)**. The `Decimal`→`number` boundary conversion noted in §4 is a Phase 3 concern.
+- **Any consumer wiring** — actually importing these types into Angular services or Nest controllers
+  happens in **Phase 3 (Backend)** and **Phase 4 (Frontend)**.
+- **Workspace scaffolding** — generating the `libs/shared-types` project and the tsconfig path alias
+  is **Phase 0 (Bootstrap)**, a prerequisite for this phase.
+
+**Success criteria.**
+- `libs/shared-types/src` exports all nine §0.3 types and the four request DTOs through `index.ts`;
+  the response interfaces are textually identical to `src/WeatherApp.Client/src/types/weather.ts`.
+- `npm run build` builds the `shared-types` library with no type errors.
+- `npm run lint` passes for the library (no stray runtime code, no disallowed imports).
+- A throwaway type-only import of `@nimbus/shared-types` resolves from both `apps/web` and `apps/api`
+  via the Phase 0 path alias (compile-checked, no runtime dependency introduced).
+
+**Enumerated task split** — `S` · 2 task docs (phase-1 §0.3 response types + barrel; phase-2 §0.2-derived request DTOs).
+1. **Lift the §0.3 response types into `libs/shared-types` + barrel.** Copy the nine interfaces
+   verbatim into the library's source, add `index.ts` re-exporting them, and confirm `npm run build` /
+   `npm run lint` are green. Verifiable: the nine types resolve via `@nimbus/shared-types`.
+2. **Add the four §0.2-derived request DTOs and export them through the barrel.**
+   `UpdatePreferencesRequest`, `SaveLocationRequest`, `UpdateSavedLocationRequest` (= `SaveLocationRequest`),
+   `ReorderSavedLocationsRequest`, each matching its endpoint body. Verifiable: all four resolve via
+   the barrel and `npm run build` stays green.
 
 ### Phase 2 — Database + Prisma (½ day)
 - Author `prisma/schema.prisma` per §0.4 (`@@unique([userId, name, region])`, `@@index([userId, sortOrder])`, `@db.Decimal(9,6)` lat/lon, `now()`/`@updatedAt` timestamps).
