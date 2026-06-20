@@ -675,24 +675,175 @@ validation — and that runs out of the box with no API key by falling back to m
    endpoints honour the invariants and return the §0.2 status codes/shapes.
 
 ### Phase 4 — Frontend (Angular) (3–4 days)
-Decompose the monolithic `App.vue` into standalone components while keeping **identical DOM + class names** (so the ported CSS just works):
 
-- **Shell:** `SidebarComponent` (→ `BrandComponent`, `NavListComponent`, `SavedLocationsComponent`, `PremiumCardComponent`, `ThemeToggleComponent`).
-- **Topbar:** `TopbarComponent` (→ `SearchBoxComponent` with suggestions dropdown, `UnitSwitchComponent`, `ProfileClusterComponent`).
-- **Dashboard:** `DashboardComponent` (→ `HeroWeatherComponent`, `PreviewRowComponent`, `HourlyPanelComponent`, `ForecastPanelComponent`, `MetricStackComponent`).
-- **Reusable:** `MetricCardComponent`, `WeatherIconComponent` (condition → lucide icon map: rain→CloudRain, partly cloud→CloudSun, cloud→Cloud, night/clear→Moon, default→Sun), `SparklineComponent`.
+> _Normalized 2026-06-20: expanded from a thin component/state bullet list into the pipeline's required
+> shape. Verified against the repo: `apps/web` is the Phase 0 Angular **standalone** scaffold — `src/main.ts`
+> bootstraps `App` via `bootstrapApplication`, `src/app/app.config.ts` provides **only**
+> `provideBrowserGlobalErrorListeners()` (no `provideHttpClient` yet), `src/app/app.ts` is the Nx-welcome
+> placeholder (`title = 'web'`, imports `NxWelcome`), `src/styles.scss` is an empty placeholder comment,
+> `src/index.html` carries `<title>web</title>` and `href="favicon.ico"`, and `apps/web/public/favicon.ico`
+> is the Nx default. **There is no `proxy.conf.json`, no `environment.ts`, and the `serve` target in
+> `apps/web/project.json` has no `proxyConfig`** — all of that is Phase 4's to add. Phase 1's
+> `@nimbus/shared-types` is landed and importable from `apps/web` (Phase 1 handoff). **Phase 3 (Backend)
+> is in flight, not yet shipped** — `docs/tasks/Tasks-3-*`/`Impl-3-*` exist but there is no
+> `docs/handoffs/Phase-3-Handoff.md`; Phase 4 depends on the Phase 3 API serving the §0.2 contract on
+> `http://localhost:3000` and should sequence after it lands. `rxjs ~7.8.0` and `@angular/common`
+> (which provides `HttpClient`) are already in `package.json`; `lucide-angular` is **not** installed._
 
-- **State — `WeatherStore` service using Angular signals.** Mirror the `App.vue` reactive state:
+**Goal.** Rebuild the Nimbus dashboard UI in `apps/web` by decomposing the source app's monolithic
+`App.vue` into Angular **standalone components** — preserving **identical DOM structure and class
+names** so the ported `styles.css` reproduces a near-pixel-identical, dark-only UI — wired to a
+signals-based `WeatherStore` and an `HttpClient`-based `WeatherApiService` that consumes all 11 §0.2
+endpoints. The deliverable is a running `nx serve web` (4200) that, against the Phase 3 API (3000),
+exercises every §0.1 user-visible behavior: debounced search, current-conditions hero, previews,
+hourly/daily forecasts, metric cards with sparklines, save/reorder/default/delete saved locations, and
+the persisted °F/°C toggle.
+
+**Scope (in scope).**
+- **Component decomposition (identical DOM + class names).** Port `App.vue` into standalone components,
+  reproducing the source markup and class names verbatim so the ported CSS applies unchanged:
+  - **Shell:** `SidebarComponent` → `BrandComponent`, `NavListComponent`, `SavedLocationsComponent`
+    (select / move up·down / set-default / delete), `PremiumCardComponent`, `ThemeToggleComponent`
+    (cosmetic dark-only toggle, replicate as-is per §0.1).
+  - **Topbar:** `TopbarComponent` → `SearchBoxComponent` (suggestions dropdown), `UnitSwitchComponent`
+    (°F/°C), `ProfileClusterComponent` (static "Alex Morgan / Premium" + notifications bell, §0.1).
+  - **Dashboard:** `DashboardComponent` → `HeroWeatherComponent` (hero card + save star/plus +
+    per-condition background), `PreviewRowComponent` (3-card carousel + dot indicators),
+    `HourlyPanelComponent` (7 hours, first "Now"), `ForecastPanelComponent` (5-day list + range bar),
+    `MetricStackComponent`.
+  - **Reusable:** `MetricCardComponent`; `WeatherIconComponent` (condition → lucide icon map:
+    rain→CloudRain, partly cloud→CloudSun, cloud→Cloud, night/clear→Moon, default→Sun);
+    `SparklineComponent` (hand-rolled inline SVG, 132×46 viewBox, `line` + `bars` variants, per §0.5).
+- **State — `WeatherStore` service (Angular signals).** Mirror the `App.vue` reactive state as signals:
   `dashboard`, `loading`, `error`, `search`, `unitSystem`, `suggestions`, `savedLocations`,
-  `searchFocused`, `savingLocation`, `updatingLocationId`; plus `computed` for `activeLocation`,
-  `activeSavedLocation`, `showSuggestions`, and the formatted-date helpers. Port the exact handlers:
+  `searchFocused`, `savingLocation`, `updatingLocationId`; `computed` for `activeLocation`,
+  `activeSavedLocation`, `showSuggestions`, and the formatted-date helpers. Port the handlers exactly:
   `loadDashboard`, `loadPreferences`, `loadSavedLocations`, `changeUnits`, `chooseLocation`,
   `saveActiveLocation`, `removeSavedLocation`, `makeDefaultLocation`, `moveSavedLocation`, plus the
-  `onMounted` boot sequence (load prefs → load saved → pick default/first → load dashboard).
-- **API service — `WeatherApiService`** using `HttpClient`, one method per endpoint (a direct port of `weatherApi.ts`, with `userId = 'anonymous'`).
-- **Search debounce:** an RxJS `Subject` → `debounceTime(250)` → `switchMap(searchLocations)` (or `toObservable(searchSignal)`), matching the 250 ms / 2-char-minimum behavior.
-- **Styling:** drop `styles.css` into `apps/web/src/styles.scss` (global). Use `lucide-angular` for icons. Port `favicon.svg` and the `index.html` title.
-- **Env / proxy:** `environment.ts` exposes `apiBaseUrl`; `proxy.conf.json` forwards `/api` and `/health` to `http://localhost:3000` (replaces the Vite proxy).
+  `onMounted` boot sequence (load prefs → load saved → pick default/first → load dashboard). State is
+  typed against `@nimbus/shared-types` (no field redeclaration).
+- **API service — `WeatherApiService` (`HttpClient`).** A direct port of `weatherApi.ts`: one method per
+  §0.2 endpoint (#1–#11), `userId = 'anonymous'`, request/response bodies typed via
+  `@nimbus/shared-types`. Register `provideHttpClient()` in `app.config.ts` (currently only
+  `provideBrowserGlobalErrorListeners()`). **No new dependency** — `HttpClient` ships in
+  `@angular/common`, already installed.
+- **Search debounce (RxJS).** A `Subject` (or `toObservable(searchSignal)`) →
+  `debounceTime(250)` → `switchMap(searchLocations)` honoring the 250 ms / 2-char-minimum behavior.
+  **No new dependency** — `rxjs ~7.8.0` is already in `package.json`.
+- **Styling + assets.** Port the source `styles.css` (~1,150 lines, §0.5) into
+  `apps/web/src/styles.scss` (the global stylesheet already wired in `apps/web/project.json` `styles`),
+  preserving the §0.5 design tokens (dark-only, `#020713`/`#f4f8ff`, accent blues, `.app-shell` grid,
+  the 1500/980/640px breakpoints). Replace the Nx-welcome `App` placeholder with the real shell.
+  Use `lucide-angular` for icons. Add the CloudLightning `favicon.svg` to `apps/web/public` and set the
+  `index.html` `<title>` to **"Nimbus Weather"** (currently `web`) and the favicon link accordingly.
+- **Env / proxy.** Add `apps/web/src/environments/environment.ts` exposing `apiBaseUrl`, and an
+  `apps/web/proxy.conf.json` forwarding `/api` **and** `/health` to `http://localhost:3000` (replacing
+  the original Vite proxy); wire it via `proxyConfig` on the `serve` target in `apps/web/project.json`
+  (per §4 CORS/ports note: Angular 4200 → Nest 3000).
+- **Add the `lucide-angular` icon dependency.** **New dependency — approval required before install**
+  (see Decisions; it is not in `package.json`).
+
+> **Constraint — frontend only; contract + API are upstream.** This phase writes Angular components,
+> the `WeatherStore`, `WeatherApiService`, styles, and proxy/env config in `apps/web`. It does **not**
+> modify `libs/shared-types` (Phase 1, consumed read-only via `@nimbus/shared-types`),
+> `prisma/schema.prisma` (Phase 2), or `apps/api` (Phase 3). It consumes the §0.2 contract as served by
+> the Phase 3 backend.
+
+> **Constraint — DOM/class fidelity is load-bearing.** The faithful clone depends on reproducing the
+> source DOM structure and class names **verbatim** so the lifted `styles.css` applies unchanged (§0.5).
+> Renaming classes or restructuring markup breaks the near-pixel-identical result and is out of bounds.
+
+> **Constraint — new dependency requires approval before install.** Adding `lucide-angular` is a
+> cross-cutting change; present it for approval before running the install. (`HttpClient` via
+> `@angular/common` and `rxjs` are already present — no approval needed for those.)
+
+**Decisions needed.**
+- **Search wiring — RxJS `Subject` vs `toObservable(searchSignal)`.** *Recommendation:* a dedicated
+  RxJS `Subject` piped through `debounceTime(250)` → `switchMap` — it keeps the 2-char-minimum guard and
+  in-flight cancellation explicit and matches the source `weatherApi.ts` behavior; reach for
+  `toObservable` only if the search input is already signal-bound. No new dependency either way.
+- **`lucide-angular` as the icon library.** *Recommendation:* **`lucide-angular`** — it is the §0.5/§3
+  mapped equivalent of the source `lucide-vue-next` (identical glyph set), so the icon map ports 1:1.
+  **New dependency — approval required before install.**
+- **Where `environment.ts` / proxy live and how `apiBaseUrl` is consumed.** *Recommendation:* put the
+  env file under `apps/web/src/environments/` and have `WeatherApiService` read `apiBaseUrl` (default
+  `''` so same-origin requests hit the dev proxy); the proxy forwards `/api` + `/health` to `:3000`. In
+  prod the nginx config (Phase 7) plays the proxy's role.
+- **`provideHttpClient` configuration.** *Recommendation:* plain `provideHttpClient()` in
+  `app.config.ts` (no interceptors needed — `userId = 'anonymous'` is a route/param concern, not auth).
+- _If this repo keeps ADRs, the `lucide-angular` dependency choice and the search-debounce wiring are the
+  natural candidates to record in `docs/decisions/` (currently empty) before install._
+
+**Out of scope (deferred).**
+- **Backend / API** — every endpoint this UI calls is implemented in **Phase 3 (Backend, NestJS)**;
+  Phase 4 consumes the §0.2 contract, it does not build it.
+- **Dev `serve` ergonomics / npm `dev` script** — the combined `nx serve api` + `nx serve web` /
+  `nx run-many -t serve` wiring and the npm `dev` script are **Phase 5 (Dev workflow)**. Phase 4 adds the
+  `proxyConfig` the dev server needs, but not the orchestration script.
+- **Component / store tests** — `TestBed` specs (e.g. `WeatherIconComponent` condition→icon mapping,
+  `WeatherStore` handler behavior) are **Phase 6 (Testing)**. Phase 4 ships the code under test and must
+  keep `npm test` green, but the dedicated coverage is Phase 6.
+- **Contract / shared types** — `@nimbus/shared-types` is **Phase 1**, consumed read-only here; Phase 4
+  adds no types to the shared lib.
+- **Docker / nginx / CI** — building the static `dist`, the nginx image proxying `/api` + `/health`, and
+  GitHub Actions are **Phase 7 (Build & deploy)**.
+
+**Success criteria.**
+- `npm run build` / `npm run lint` / `npm test` are green across the workspace with the new `apps/web`
+  components, `WeatherStore`, and `WeatherApiService` in place (the Nx-welcome placeholder removed).
+- `nx serve web` (4200) against the Phase 3 API (`nx serve api`, 3000) renders the full dashboard, and
+  the §5 end-to-end UI flows pass: search a city → see debounced suggestions (250 ms, ≥2 chars); save a
+  location; reorder it (move up/down); set it default (star); delete it; toggle °F/°C and confirm the
+  preference **persists across a reload** (round-trips endpoints #4/#5).
+- `WeatherApiService` exposes one method per §0.2 endpoint (#1–#11) with `userId = 'anonymous'`, typed
+  via `@nimbus/shared-types`; `provideHttpClient()` is registered in `app.config.ts`.
+- The ported `apps/web/src/styles.scss` reproduces the §0.5 design system (dark-only, the documented
+  tokens, the 1500/980/640px responsive breakpoints) on the cloned DOM/class names; the result is a
+  near-pixel match to the source (compare to the §5 QA screenshots `qa-desktop.png` / `qa-tablet.png` /
+  `qa-mobile.png` / `qa-search.png`).
+- `index.html` shows the title **"Nimbus Weather"** with the CloudLightning `favicon.svg`; `lucide-angular`
+  renders the condition icons per the `WeatherIconComponent` map; the `SparklineComponent` renders the
+  132×46 `line`/`bars` SVG variants.
+- `apps/web/proxy.conf.json` forwards `/api` and `/health` to `http://localhost:3000` and is wired via
+  the `serve` target's `proxyConfig`; `environment.ts` exposes `apiBaseUrl`.
+
+**Enumerated task split** — `L` · 6 task docs (phase-4 `WeatherApiService` + `provideHttpClient` + `environment.ts`/`proxy.conf.json`; phase-4 `WeatherStore` signals state + RxJS search debounce; phase-4 shell/sidebar component tree; phase-4 topbar component tree; phase-4 dashboard component tree; phase-4 reusable components + global `styles.scss`/`lucide-angular`/favicon+title).
+1. **`WeatherApiService` + HttpClient + env/proxy.** Register `provideHttpClient()` in `app.config.ts`;
+   port `weatherApi.ts` into `WeatherApiService` (one method per §0.2 endpoint #1–#11, `userId =
+   'anonymous'`, typed via `@nimbus/shared-types`); add `apps/web/src/environments/environment.ts`
+   (`apiBaseUrl`) and `apps/web/proxy.conf.json` forwarding `/api` + `/health` to `:3000`, wired via the
+   `serve` target's `proxyConfig`. Verifiable: each endpoint method resolves the shared types, the dev
+   proxy forwards both prefixes to the API, and `npm run build`/`lint`/`test` stay green.
+2. **`WeatherStore` signals state + search debounce.** Implement the signals (`dashboard`, `loading`,
+   `error`, `search`, `unitSystem`, `suggestions`, `savedLocations`, `searchFocused`, `savingLocation`,
+   `updatingLocationId`), the computeds (`activeLocation`, `activeSavedLocation`, `showSuggestions`,
+   date helpers), the handlers (`loadDashboard`/`loadPreferences`/`loadSavedLocations`/`changeUnits`/
+   `chooseLocation`/`saveActiveLocation`/`removeSavedLocation`/`makeDefaultLocation`/`moveSavedLocation`),
+   the `onMounted` boot sequence, and the RxJS `debounceTime(250)` → `switchMap` search (≥2 chars).
+   Verifiable: the boot sequence loads prefs → saved → default/first → dashboard, and search emits at
+   most one request per 250 ms for queries ≥2 chars.
+3. **Shell / sidebar component tree.** `SidebarComponent` → `BrandComponent`, `NavListComponent`,
+   `SavedLocationsComponent` (select/move/default/delete bound to the store), `PremiumCardComponent`,
+   `ThemeToggleComponent` (cosmetic), reproducing the source DOM + class names. Verifiable: the sidebar
+   renders against the store, the saved-location actions invoke the store handlers, and the lifted CSS
+   applies unchanged.
+4. **Topbar component tree.** `TopbarComponent` → `SearchBoxComponent` (suggestions dropdown bound to
+   the debounced search), `UnitSwitchComponent` (°F/°C → `changeUnits`), `ProfileClusterComponent`
+   (static "Alex Morgan / Premium" + bell), reproducing DOM/class names. Verifiable: typing in the
+   search box surfaces suggestions and selecting one calls `chooseLocation`; the unit switch round-trips
+   preferences.
+5. **Dashboard component tree.** `DashboardComponent` → `HeroWeatherComponent` (hero + save star/plus +
+   per-condition background), `PreviewRowComponent` (3-card carousel + dots), `HourlyPanelComponent`
+   (7 hours, first "Now"), `ForecastPanelComponent` (5-day list + range bar), `MetricStackComponent`,
+   reproducing DOM/class names. Verifiable: a loaded `WeatherDashboard` renders all five panels with the
+   correct counts (7 hourly / 5 daily / 3 previews / 4 metrics) and the save button calls
+   `saveActiveLocation`.
+6. **Reusable components + global styles/assets.** `MetricCardComponent`, `WeatherIconComponent`
+   (condition→lucide map), `SparklineComponent` (132×46 `line`/`bars` SVG); port `styles.css` into
+   `apps/web/src/styles.scss`; install/wire `lucide-angular` (**approval required**); add the
+   `favicon.svg` and set the `index.html` title to "Nimbus Weather". Verifiable: the design tokens and
+   breakpoints from §0.5 render correctly, icons resolve via the mapping, sparklines draw both variants,
+   and the document title/favicon match.
 
 ### Phase 5 — Dev workflow (½ day)
 - `nx serve api` (port 3000) + `nx serve web` (port 4200) — or `nx run-many -t serve`. Add an npm `dev` script.
