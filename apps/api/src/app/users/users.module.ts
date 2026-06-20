@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
 import { PreferenceService } from './preference.service';
+import { SavedLocationService } from './saved-location.service';
 import { UsersController } from './users.controller';
 
 /**
- * UsersModule — endpoints #4-#11. This task wires preferences (#4/#5);
- * Task 3-5 extends the controller and service with saved locations (#6-#11).
+ * UsersModule — endpoints #4-#11: preferences (PreferenceService) and saved
+ * locations (SavedLocationService).
  */
 @Module({
   controllers: [UsersController],
-  providers: [PreferenceService],
+  providers: [PreferenceService, SavedLocationService],
 })
 export class UsersModule {}
