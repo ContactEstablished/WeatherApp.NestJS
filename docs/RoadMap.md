@@ -409,8 +409,106 @@ import identical types from `@nimbus/shared-types` and the contract can never si
    the barrel and `npm run build` stays green.
 
 ### Phase 2 — Database + Prisma (½ day)
-- Author `prisma/schema.prisma` per §0.4 (`@@unique([userId, name, region])`, `@@index([userId, sortOrder])`, `@db.Decimal(9,6)` lat/lon, `now()`/`@updatedAt` timestamps).
-- `npx prisma migrate dev --name init`, then `npx prisma generate`. (This mirrors the two existing EF migrations: `InitialCreate` + `AddSavedLocationSortOrder`.)
+
+> _Normalized 2026-06-20: expanded from a thin two-bullet stub into the pipeline's required shape.
+> Verified against the repo: `prisma/schema.prisma` exists as the Phase 0 **stub** (a `generator
+> client` block and a `postgresql` `datasource` only — no models); there is no `prisma/migrations/`
+> directory yet and no `prisma/seed.ts`. `libs/shared-types` (Phase 1) is landed. Phase 2 builds on
+> the Phase 0 stub by adding the two §0.4 models and the initial migration._
+
+**Goal.** Turn the Phase 0 Prisma stub into the project's persistence schema: author the two §0.4
+models (`UserPreference`, `SavedLocation`) with their exact field types, constraints, and indexes into
+`prisma/schema.prisma`, then create the initial migration and generate the Prisma client. The
+deliverable is a migrated Postgres schema plus a resolvable generated client that Phase 3's
+`PrismaService` can import — this phase authors **schema and migration only**, no NestJS providers and
+no service-layer logic.
+
+**Scope (in scope).**
+- **Author the two §0.4 models in `prisma/schema.prisma`.** Replace the stub's model-free body with
+  the §0.4 target block exactly: `UserPreference` (`userId` `@id @db.VarChar(120)`, `unitSystem`
+  `@default("imperial") @db.VarChar(16)`, `createdUtc @default(now())`, `updatedUtc @updatedAt`,
+  `@@map("user_preferences")`) and `SavedLocation` (`id @id @default(autoincrement())`, `userId`/`name`/
+  `region`/`country` `@db.VarChar`, `latitude`/`longitude` `@db.Decimal(9, 6)`, `isDefault
+  @default(false)`, `sortOrder @default(0)`, `createdUtc @default(now())`, `@@map("saved_locations")`).
+  Leave the existing `generator client` and `postgresql` `datasource` blocks untouched.
+- **Carry the two constraints exactly.** `@@unique([userId, name, region])` and
+  `@@index([userId, sortOrder])` on `SavedLocation` — these back the §0.4 "no duplicate" and ordered-list
+  invariants at the database layer.
+- **Create the initial migration.** `npx prisma migrate dev --name init` against the Phase 0 local
+  Postgres (`docker compose up -d` first), producing `prisma/migrations/<timestamp>_init/migration.sql`.
+- **Generate the Prisma client.** `npx prisma generate` immediately after the migration, so the typed
+  client exists on disk before Phase 3 imports it.
+- **Author a `prisma/seed.ts` stub and wire `prisma.seed` in `package.json` (do not run).** A minimal
+  (empty or single-`anonymous`-row) seed file plus the `package.json` `"prisma": { "seed": "..." }`
+  hook, so Phase 5 can run it without further wiring. **Authoring only — running the seed is Phase 5.**
+
+> **Constraint — schema + migration only, no providers.** This phase touches `prisma/schema.prisma`,
+> `prisma/migrations/`, the generated client, and the `prisma/seed.ts` + `package.json` seed hook.
+> It writes **no** NestJS code: `PrismaModule`/`PrismaService`, the `UsersModule`, and every §0.4
+> service-layer invariant are Phase 3 (see Out of scope).
+
+> **Constraint — schema migration is an approval gate.** §0 records that "schema migrations require
+> approval before apply." Authoring `schema.prisma` may proceed, but **`prisma migrate dev` must not be
+> run until the schema diff is approved** — it creates a migration and mutates the database.
+
+**Decisions needed.**
+- **Single `init` migration vs. mirroring the two EF migrations** (`InitialCreate` +
+  `AddSavedLocationSortOrder`). *Recommendation:* **one `--name init` migration** — both models are
+  authored fresh in a single step, so there is no reason to split history; the EF migration names are
+  informational only (they describe how the *current* .NET schema evolved, not a sequencing requirement
+  here).
+- **`prisma generate` placement.** *Recommendation:* **run it as part of this phase**, immediately
+  after `migrate dev`, so the generated client is present on disk before Phase 3's `PrismaService`
+  tries to import `@prisma/client`. (`migrate dev` already triggers a generate, but running it
+  explicitly makes the dependency order unambiguous and survives a `migrate` that skips generation.)
+- **Seed data.** *Recommendation:* **author a `prisma/seed.ts` stub and wire `prisma.seed` in
+  `package.json`, but do not run it here.** A minimal seed (e.g. one `anonymous` `UserPreference` row)
+  gives Phase 3/6 integration tests a known starting state, but *running* seeds is a dev-workflow
+  concern — see Out of scope and the Phase 5 forward pointer.
+- **Schema approval gate (carry-through from §0).** *Recommendation:* treat the schema diff as
+  **approval required before apply** — present the authored `schema.prisma` and the planned migration
+  for review, then run `migrate dev` only once approved.
+
+**Out of scope (deferred).**
+- **`PrismaModule` / `PrismaService`** — the global module and the `PrismaClient`-extending service
+  that connects in `onModuleInit` are **Phase 3 (Backend)**. Phase 2 produces the schema and client they
+  depend on, nothing more.
+- **All §0.4 service-layer invariants** — auto-create-on-first-read, single-default-per-user,
+  `(userId, name, region)` dedupe, and contiguous-`sortOrder`-on-reorder are **Phase 3** service logic
+  (`PreferenceService` / `UsersModule`). The schema's `@@unique` and `@@index` only back those rules at
+  the DB layer; the enforcement code is not written here.
+- **Running the seed** — `prisma/seed.ts` is *authored and wired* here but **executed in Phase 5
+  (Dev workflow)** as part of the local-DB setup. Phase 2 must not run `prisma db seed`.
+- **`Decimal` → `number` boundary conversion** — turning Prisma `Decimal` lat/lon into the
+  `LocationSuggestion` contract's `number` fields (per §4) is a **Phase 3 (Backend)** API-boundary
+  concern, not a schema concern.
+
+**Success criteria.**
+- `prisma/schema.prisma` contains the two §0.4 models exactly — including `@@unique([userId, name,
+  region])`, `@@index([userId, sortOrder])`, `@db.Decimal(9, 6)` on `latitude`/`longitude`, the
+  `@default(now())` / `@updatedAt` timestamps, and the `@@map` table names — and `npx prisma validate`
+  passes.
+- `npx prisma migrate dev --name init` succeeds (after approval) and produces a
+  `prisma/migrations/<timestamp>_init/migration.sql` whose DDL creates `user_preferences` and
+  `saved_locations` with the unique constraint and the index.
+- `npx prisma generate` completes and the generated client resolves — a throwaway
+  `import { PrismaClient } from '@prisma/client'` type-checks.
+- `prisma/seed.ts` exists and `package.json` carries a `prisma.seed` hook, but no seed has been run
+  (Phase 5 owns execution).
+- `npm run build` stays green (no schema-driven type breakage introduced into the workspace).
+
+**Enumerated task split** — `S` · 2 task docs (phase-2 author `schema.prisma` models + seed/`package.json` wiring; phase-2 run `migrate dev --name init` + `prisma generate`).
+1. **Author the two §0.4 models (and the seed stub) and validate the schema.** Replace the stub body
+   of `prisma/schema.prisma` with the `UserPreference` and `SavedLocation` models — all field types,
+   `@db.VarChar`/`@db.Decimal(9, 6)` annotations, defaults, `@updatedAt`, `@@unique`, `@@index`, and
+   `@@map` names — and add a minimal `prisma/seed.ts` stub plus the `package.json` `prisma.seed` hook.
+   Verifiable: `npx prisma validate` passes; `prisma/seed.ts` and the `prisma.seed` hook exist (seed
+   not run).
+2. **Create the initial migration and generate the client.** With local Postgres up and the schema
+   diff approved, run `npx prisma migrate dev --name init` then `npx prisma generate`. Verifiable: a
+   `prisma/migrations/<timestamp>_init/migration.sql` exists creating `user_preferences` and
+   `saved_locations` (with the unique constraint + index), and a throwaway
+   `import { PrismaClient } from '@prisma/client'` resolves.
 
 ### Phase 3 — Backend (NestJS) (2–3 days)
 Module/provider layout mirrors the current .NET service layer:
