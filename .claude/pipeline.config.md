@@ -18,7 +18,7 @@ kit was distilled from; change the values to match your repo.
 ## Artifact paths
 | key | value (edit)
 |---|---|---|
-| **roadmap** | `ROADMAP.md`
+| **roadmap** | `docs/RoadMap.md`
 | **tasks_doc** | `docs/tasks/Tasks-{phase}-{n}.md`
 | **impl_doc** | `docs/tasks/Impl-{phase}-{n}.md`
 | **prompt_doc** | `docs/prompts/Phase-{phase}-Prompt.md`

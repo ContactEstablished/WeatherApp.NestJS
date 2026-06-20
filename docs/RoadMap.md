@@ -254,10 +254,96 @@ import the same interfaces, so the API contract can never silently drift.
 > Effort estimates assume one developer familiar with Angular + Nest. They are guidance, not commitments.
 
 ### Phase 0 — Bootstrap (½ day)
-- `npx create-nx-workspace@latest nimbus-weather --preset=apps` (integrated monorepo).
-- Add plugins `@nx/angular` and `@nx/nest`. Generate `apps/web` (Angular, standalone components, SCSS) and `apps/api` (Nest).
-- Generate `libs/shared-types`. Add Prisma: `npm i -D prisma`, `npm i @prisma/client`, `npx prisma init`.
-- Create `docker-compose.yml` with a `postgres:16` service, and `.env` (`DATABASE_URL`, `OPENWEATHER_API_KEY`, `PORT=3000`).
+
+> _Normalized 2026-06-20: expanded from a thin bullet list into the pipeline's required shape.
+> The repo is not yet scaffolded (only `README.md`, `.gitignore`, `CLAUDE.md`, and the docs/`.claude`
+> kit exist) — there is no `nx.json`, `package.json`, `apps/`, `libs/`, `prisma/`, or
+> `docker-compose.yml` yet. Everything below is therefore greenfield._
+
+**Goal.** Stand up the Nx integrated monorepo and all of the empty-but-wired scaffolding the rest of
+the plan lands into: `apps/web` (Angular standalone components, SCSS), `apps/api` (Nest),
+`libs/shared-types` with the `@nimbus/shared-types` tsconfig path alias, Prisma initialized, local
+Postgres via `docker-compose`, and `.env` / `.env.example`. Phase 0 produces **structure and
+configuration only** — no contract types, no business logic, no schema models (those are Phases 1+).
+The deliverable is a workspace where every later phase already has a place to put its code.
+
+**Scope (in scope).**
+- **Create the Nx workspace.** `npx create-nx-workspace@latest nimbus-weather --preset=apps`
+  (integrated monorepo). Workspace name is `nimbus-weather` (matches §1 and the `@nimbus` scope).
+- **Add the framework plugins and generate the two apps.** Add `@nx/angular` and `@nx/nest`, then
+  generate `apps/web` (Angular **standalone components**, **SCSS** styling) and `apps/api` (Nest).
+- **Generate the shared library and lock the path alias.** Generate `libs/shared-types` and
+  confirm/establish the `@nimbus/shared-types` tsconfig path alias in `tsconfig.base.json`. **The alias
+  spelling is load-bearing — Phase 1 imports from `@nimbus/shared-types`** and depends on it resolving
+  from both apps. The library only needs a placeholder export for now; the real contract types are
+  Phase 1.
+- **Initialize Prisma (no models).** `npm i -D prisma`, `npm i @prisma/client`, `npx prisma init` —
+  this creates the `prisma/schema.prisma` stub and the `.env` `DATABASE_URL`. **No models are authored
+  here** — schema authoring per §0.4 is Phase 2.
+- **Local Postgres + environment config.** Add `docker-compose.yml` with a `postgres:16` service, and
+  `.env` + `.env.example` carrying `DATABASE_URL`, `OPENWEATHER_API_KEY` (may be blank — the app falls
+  back to mock weather data, per §4), and `PORT=3000` (Nest; the Angular dev server is 4200).
+- **Confirm the verify commands resolve.** Confirm baseline `npm run build`, `npm run lint`, and
+  `npm test` resolve to working Nx targets across the generated projects (even if they only exercise
+  empty scaffolding).
+
+> **Constraint — scaffolding and config only.** No contract types, no DTOs, no Prisma models, no
+> modules/providers, no UI. If a step would produce business logic or a schema model, it belongs to a
+> later phase (see Out of scope).
+
+**Decisions needed.**
+- **Package manager.** The "Scaffolding the project" section in `CLAUDE.md` notes the choice is
+  undecided and the `.gitignore` carries npm/pnpm/yarn references. *Recommendation:* **npm** — the
+  config's build/verify commands are already `npm run build` / `npm test` / `npm run lint`, and the
+  §0.x bullets use `npm i`. Pick it during `create-nx-workspace` and remove the "undecided" note from
+  `CLAUDE.md`.
+- **Nx workspace style — integrated vs package-based.** *Recommendation:* **integrated** (the
+  `--preset=apps` default), matching §1's stated "Nx integrated monorepo" so Nx owns build/test/serve
+  targets for both apps.
+- **Commit `.env.example` only; gitignore `.env`.** *Recommendation:* commit `.env.example`
+  documenting the three vars and add `.env` to `.gitignore` (the Nest template's `.gitignore` already
+  covers the `.env*` family), per §6. **Approval required before apply** — this is a repo-policy edit.
+- **Confirm `@nimbus` as the alias/npm scope.** *Recommendation:* **keep `@nimbus`** — it matches §1
+  and the `nimbus-weather` workspace name; only revisit if the eventual published scope differs.
+
+**Out of scope (deferred).**
+- **§0.3 contract types and §0.2-derived request DTOs** — the nine response interfaces and four
+  request DTOs are **Phase 1 (Shared contract)**; Phase 0 only creates the empty `libs/shared-types`
+  project and its path alias.
+- **Prisma schema models + migrations** — authoring `schema.prisma` per §0.4 and running
+  `prisma migrate dev` is **Phase 2 (Database + Prisma)**. Phase 0 only runs `prisma init` (stub).
+  **Schema migrations require approval before apply.**
+- **All backend modules/providers** — the Prisma/Config/Health/Weather/Users modules are **Phase 3 (Backend)**.
+- **Angular UI / components / `WeatherStore`** — all components, state, and ported CSS are **Phase 4 (Frontend)**.
+- **CI (GitHub Actions)** — install → lint → test → build on PR is **Phase 7 (Build & deploy)**.
+
+**Success criteria.**
+- The workspace builds clean: `npm run build` succeeds across the generated projects; `npm run lint`
+  and `npm test` resolve to working Nx targets and pass against the empty scaffolding.
+- `apps/web` and `apps/api` exist and serve (Angular dev server on 4200, Nest on 3000).
+- `libs/shared-types` resolves via the `@nimbus/shared-types` path alias from **both** `apps/web` and
+  `apps/api` (a placeholder export is enough to compile-check the alias).
+- `npx prisma` is runnable and `prisma/schema.prisma` exists (stub, no models).
+- `docker compose up -d` brings up the `postgres:16` service.
+- `.env.example` documents `DATABASE_URL`, `OPENWEATHER_API_KEY`, and `PORT`, and notes that a missing
+  `OPENWEATHER_API_KEY` makes the app serve mock weather data (per §4).
+
+**Enumerated task split** — `S` · 4 task docs (phase-0 Nx workspace + apps/web + apps/api; phase-0 libs/shared-types + `@nimbus/shared-types` path alias; phase-0 Prisma init; phase-0 docker-compose Postgres + `.env`/`.env.example`).
+1. **Create the Nx workspace and generate both apps.** Run `create-nx-workspace@latest nimbus-weather
+   --preset=apps`, add `@nx/angular` + `@nx/nest`, generate `apps/web` (Angular standalone, SCSS) and
+   `apps/api` (Nest). Verifiable: `npm run build` / `npm run lint` / `npm test` resolve to Nx targets
+   and pass; both apps serve (web 4200, api 3000).
+2. **Generate `libs/shared-types` and establish the `@nimbus/shared-types` path alias.** Generate the
+   library with a placeholder export and confirm the `@nimbus/shared-types` alias in
+   `tsconfig.base.json`. Verifiable: a placeholder import of `@nimbus/shared-types` resolves from both
+   `apps/web` and `apps/api`, and `npm run build` stays green.
+3. **Initialize Prisma (stub, no models).** `npm i -D prisma`, `npm i @prisma/client`,
+   `npx prisma init`. Verifiable: `prisma/schema.prisma` exists and `npx prisma` is runnable; no models
+   are authored.
+4. **Add local Postgres and environment config.** Author `docker-compose.yml` with a `postgres:16`
+   service and create `.env` + `.env.example` (`DATABASE_URL`, `OPENWEATHER_API_KEY`, `PORT=3000`),
+   gitignoring `.env`. Verifiable: `docker compose up -d` brings up Postgres and `.env.example`
+   documents the three vars plus the no-key mock fallback.
 
 ### Phase 1 — Shared contract (`libs/shared-types`) (½ day)
 
