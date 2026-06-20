@@ -410,6 +410,18 @@ import identical types from `@nimbus/shared-types` and the contract can never si
 
 ### Phase 2 — Database + Prisma (½ day)
 
+> _**Shipped 2026-06-20.** Closed out after the Task 2-1 / 2-2 handoff landed on `main`
+> (`f78f462` schema + seed stub + `package.json` hook; `84bf29a` `init` migration + `prisma generate`).
+> Both §0.4 models (`UserPreference`, `SavedLocation`) are authored in `prisma/schema.prisma` with the
+> `@@unique([userId, name, region])` constraint and `@@index([userId, sortOrder])`; the initial
+> migration is `prisma/migrations/20260620144720_init/migration.sql` (provider locked to `postgresql`
+> in `migration_lock.toml`); Prisma Client 6.19.3 is generated and the `prisma.userPreference` /
+> `prisma.savedLocation` accessors type-check. `prisma/seed.ts` is a minimal stub (empty `main()`,
+> commented anonymous upsert) wired via `package.json` `prisma.seed = "ts-node prisma/seed.ts"` but
+> **not run** (Phase 5 owns execution). `npx prisma migrate status` reports 1 migration applied, no
+> drift; `npm run build` / `npm run lint` / `npm test` are green. See
+> `docs/handoffs/Phase-2-Handoff.md`. The historical plan is preserved below._
+>
 > _Normalized 2026-06-20: expanded from a thin two-bullet stub into the pipeline's required shape.
 > Verified against the repo: `prisma/schema.prisma` exists as the Phase 0 **stub** (a `generator
 > client` block and a `postgresql` `datasource` only — no models); there is no `prisma/migrations/`
@@ -511,28 +523,148 @@ no service-layer logic.
    `import { PrismaClient } from '@prisma/client'` resolves.
 
 ### Phase 3 — Backend (NestJS) (2–3 days)
-Module/provider layout mirrors the current .NET service layer:
 
-- **PrismaModule** → `PrismaService` (extends `PrismaClient`, connects in `onModuleInit`). Global module.
-- **ConfigModule** (`@nestjs/config`) for env: OpenWeather key + base URL, DB URL, CORS origin, `UseMockWhenMissing`.
-- **HealthController** → `GET /health` returning `{ status: 'ok', service: 'nimbus-api', time: <ISO> }`. **Excluded** from the `api` global prefix.
-- **WeatherModule**
-  - `WeatherController` → endpoints #2 (`/weather/dashboard`) and #3 (`/weather/locations`).
-  - Provider token `WEATHER_SERVICE` → **`OpenWeatherService`** (primary) with **`MockWeatherService`** fallback. Port the existing OpenWeather logic:
-    - Geocoding: `GET /geo/1.0/direct?q=&limit=5&appid=` and `GET /geo/1.0/zip?zip=XXXXX,US&appid=`.
-    - Weather: `GET /data/3.0/onecall?lat=&lon=&units=&exclude=minutely&appid=`.
-    - Imperial/metric unit mapping; US-state-abbreviation normalization; ZIP detection (5-digit / 9-digit); timezone-aware time conversion.
-    - Condition → Unsplash background-image map; shape the response into 7 hourly / 5 daily / 3 previews / 4 metrics, with `trend` arrays for sparklines.
-  - HTTP via `@nestjs/axios` or native `fetch`. Caching via `@nestjs/cache-manager` (in-memory store): **weather 10 min** keyed by `location + unitSystem`, **geocoding 6 hr** keyed by query.
-  - Fall back to `MockWeatherService` when the API key is missing or the upstream call fails (matches current behavior — the app must run out of the box with no key).
-- **UsersModule**
-  - `UsersController` → endpoints #4–#11 (preferences + saved-location CRUD, reorder, set-default).
-  - `PreferenceService` (Prisma-backed) implementing the §0.4 invariants. (Optionally keep an in-memory implementation for a "no DB configured" mode, like the original `InMemoryUserPreferenceService` — low priority.)
-- **Cross-cutting**
-  - Global `ValidationPipe` (`class-validator` / `class-transformer`) over request DTOs.
-  - CORS allowing the Angular dev origin (`http://localhost:4200`).
-  - Global prefix `api`, excluding `health`.
-  - camelCase JSON (the JS default) — do not add a snake_case/Pascal-case transformer.
+> _Normalized 2026-06-20: expanded from a thin module/provider bullet list into the pipeline's required
+> shape. Verified against the repo: `apps/api` is the Phase 0 Nest scaffold — `apps/api/src/main.ts`
+> ships the Nx-default `app.setGlobalPrefix('api')` (Phase 0 handoff §4 left this as-is; Phase 3 owns
+> the authoritative prefix + `/health` exclusion) and there are no feature modules yet
+> (`PrismaModule`/`ConfigModule`/`HealthController`/`WeatherModule`/`UsersModule` are all unwritten).
+> Phase 1's `@nimbus/shared-types` and Phase 2's generated Prisma Client (`@prisma/client`, with the
+> `prisma.userPreference` / `prisma.savedLocation` accessors) are landed and importable. No backend
+> runtime dependencies (`@nestjs/config`, `@nestjs/axios`, `@nestjs/cache-manager`, `class-validator`,
+> `class-transformer`) are installed yet — adding them is in scope here and flagged below._
+
+**Goal.** Build the NestJS API that fulfils the full §0.2 11-endpoint REST contract, mirroring the
+current .NET service layer: a global Prisma module, env-driven config, the health endpoint, the weather
+module (OpenWeather primary + mock fallback, with caching), and the users module implementing the §0.4
+persistence invariants. The deliverable is a server that serves every endpoint with camelCase JSON,
+the `api` global prefix (health excluded), CORS for the Angular dev origin, and global request-DTO
+validation — and that runs out of the box with no API key by falling back to mock weather data.
+
+**Scope (in scope).**
+- **`PrismaModule` → `PrismaService`.** A global module whose `PrismaService` extends the Phase 2
+  generated `PrismaClient` and connects in `onModuleInit` (disconnects on shutdown). This is the single
+  DB access point injected into the users module.
+- **`ConfigModule` (`@nestjs/config`).** Typed env access for the OpenWeather key + base URL, the DB
+  URL, the CORS origin, and a `UseMockWhenMissing` flag. Loaded globally so providers inject config
+  rather than reading `process.env` directly.
+- **`HealthController` → `GET /health`.** Returns `{ status: 'ok', service: 'nimbus-api', time: <ISO> }`
+  and is **excluded** from the `api` global prefix (per §0.2 note / §4 gotcha).
+- **`WeatherModule`** — `WeatherController` serving endpoints #2 (`/weather/dashboard`) and #3
+  (`/weather/locations`); a `WEATHER_SERVICE` provider token bound to `OpenWeatherService` (primary)
+  with a `MockWeatherService` fallback. Port the OpenWeather logic: geocoding
+  (`/geo/1.0/direct` + `/geo/1.0/zip`), one-call weather (`/data/3.0/onecall?...exclude=minutely`),
+  imperial/metric unit mapping, US-state-abbreviation normalization, ZIP detection (5/9-digit),
+  timezone-aware time conversion, condition→Unsplash background map, and shaping into 7 hourly / 5 daily
+  / 3 previews / 4 metrics with `trend` arrays. HTTP via `@nestjs/axios` or native `fetch`; caching via
+  `@nestjs/cache-manager` (in-memory): **weather 10 min** keyed by `location + unitSystem`,
+  **geocoding 6 hr** keyed by query. Fall back to `MockWeatherService` when the key is missing or the
+  upstream call fails (the app must run key-less).
+- **`UsersModule`** — `UsersController` serving endpoints #4–#11 (preferences GET/PUT; saved-location
+  list/create/update/delete; set-default; reorder), backed by a Prisma-backed `PreferenceService` that
+  implements the four §0.4 invariants: auto-create `UserPreference` (`unitSystem = "imperial"`) on first
+  read; single-default-per-user (setting a default atomically clears the others); no duplicate
+  `(userId, name, region)`; contiguous-`sortOrder` rewrite on reorder. Convert Prisma `Decimal`
+  lat/lon to `number` at the response boundary so JSON matches the `LocationSuggestion` contract (§4).
+- **Cross-cutting wiring.** Global `ValidationPipe` over `class-validator`/`class-transformer` request
+  DTO classes that *implement* the `@nimbus/shared-types` request interfaces (no field duplication, per
+  the Phase 1 handoff); CORS allowing `http://localhost:4200`; global prefix `api` excluding `health`;
+  keep camelCase JSON (the JS default — do **not** add a snake_case/Pascal-case transformer).
+- **Add the backend runtime dependencies** the above requires (`@nestjs/config`, the chosen HTTP
+  approach, `@nestjs/cache-manager` + `cache-manager`, `class-validator`, `class-transformer`).
+  **New dependencies — approval required before install** (see Decisions).
+
+> **Constraint — backend only; types and schema are upstream.** This phase writes Nest modules,
+> providers, controllers, and DTO classes in `apps/api`. It does **not** modify `libs/shared-types`
+> (Phase 1, consumed read-only via `@nimbus/shared-types`) or `prisma/schema.prisma` /
+> `prisma/migrations/` (Phase 2). DTO classes *implement* the shared interfaces; they do not redeclare
+> the contract.
+
+> **Constraint — contract fidelity is non-negotiable.** Endpoint paths, params, request/response JSON
+> shapes, and status codes must reproduce §0.2 **1:1** (including the `204 No Content` responses for
+> the mutating location endpoints and the `/health` placement outside `api`). The two non-trivial
+> server rules — single default per user; contiguous `sortOrder` on reorder — are the §4-flagged
+> high-risk logic; port them carefully.
+
+> **Constraint — new dependencies require approval before install.** Adding `@nestjs/config`,
+> `@nestjs/axios`/HTTP client, `@nestjs/cache-manager`, `class-validator`, and `class-transformer` is a
+> cross-cutting change; present the dependency list for approval before running the install.
+
+**Decisions needed.**
+- **HTTP client — `@nestjs/axios` vs native `fetch`.** *Recommendation:* **native `fetch`** (Node 22 in
+  this workspace ships a stable global `fetch`) to avoid an extra dependency and an RxJS-wrapped HTTP
+  layer; reach for `@nestjs/axios` only if interceptor/retry ergonomics are wanted. Either way this is a
+  **new-dependency / no-new-dependency** decision to lock before install.
+- **Caching backend.** *Recommendation:* `@nestjs/cache-manager` with the **in-memory** store (mirrors
+  the .NET `IMemoryCache`); the 10-min weather / 6-hr geocoding TTLs and cache keys are fixed by §0/§4.
+  **New dependency — approval required.**
+- **Whether to keep an in-memory `PreferenceService` fallback** (mirroring the original
+  `InMemoryUserPreferenceService` "no DB configured" mode). *Recommendation:* **skip it** (low priority
+  per the original bullet) — Phase 2 makes Postgres the committed persistence layer; add it later only
+  if a DB-less demo mode is wanted.
+- **Validation strictness / `ValidationPipe` options.** *Recommendation:* enable `whitelist` +
+  `forbidNonWhitelisted` + `transform` so request bodies are coerced to the DTO classes and unknown
+  fields are rejected — tightens contract fidelity without changing the JSON shape.
+- **DTO ↔ shared-types binding.** *Recommendation:* request DTO **classes** in `apps/api` `implements`
+  the `@nimbus/shared-types` request interfaces (`SaveLocationRequest`, etc.) and add only
+  `class-validator` decorators — no field redeclaration, per the Phase 1 handoff guidance.
+- _If this repo keeps ADRs, the HTTP-client choice, the caching backend, and the dependency set are the
+  natural candidates to record in `docs/decisions/` before install._
+
+**Out of scope (deferred).**
+- **Angular UI / `WeatherStore` / `WeatherApiService` / proxy** — all client-side consumption of these
+  endpoints is **Phase 4 (Frontend)**.
+- **Running the Prisma seed** — `prisma/seed.ts` (authored in Phase 2) is executed in **Phase 5 (Dev
+  workflow)**; Phase 3 may rely on a seeded or empty DB but does not run `prisma db seed`.
+- **The dev `serve` ergonomics / npm `dev` script** — `nx serve api` + `nx serve web` wiring is
+  **Phase 5**.
+- **Automated tests** — `PreferenceService` integration tests (Testcontainers) and `OpenWeatherService`
+  mocked-HTTP tests are **Phase 6 (Testing)**. Phase 3 ships the code under test and must keep
+  `npm test` green, but the dedicated coverage is Phase 6.
+- **Schema changes** — any new model/column/index belongs to a Phase 2-style migration (approval-gated);
+  Phase 3 consumes the Phase 2 schema as-is.
+- **CI / Dockerfiles** — **Phase 7 (Build & deploy)**.
+
+**Success criteria.**
+- All 11 §0.2 endpoints respond with the exact paths, params, JSON shapes, and status codes
+  (`204 No Content` on the mutating location endpoints); `GET /health` returns
+  `{ status: 'ok', service: 'nimbus-api', time: <ISO> }` and sits **outside** the `api` prefix.
+- `GET /api/weather/dashboard?location=San%20Francisco,%20CA&unitSystem=imperial&userId=anonymous`
+  returns a full `WeatherDashboard` (mock data when `OPENWEATHER_API_KEY` is absent), with 7 hourly /
+  5 daily / 3 previews / 4 metrics and sparkline `trend` arrays.
+- The four §0.4 invariants hold: first preferences read auto-creates an `imperial` row; setting a
+  default clears it on the others; a duplicate `(userId, name, region)` is rejected; reorder rewrites
+  `sortOrder` contiguously. Saved-location `latitude`/`longitude` serialize as JSON `number`, not
+  Prisma `Decimal`.
+- CORS allows `http://localhost:4200`; the global `ValidationPipe` rejects malformed request bodies;
+  JSON keys stay camelCase (no transformer added).
+- `npm run build` / `npm run lint` / `npm test` are green across the workspace.
+
+**Enumerated task split** — `S` · 5 task docs (phase-3 PrismaModule + ConfigModule + dependency install; phase-3 HealthController + global prefix/`api` exclusion + CORS + global ValidationPipe; phase-3 WeatherModule — OpenWeather + Mock + caching, endpoints #2/#3; phase-3 UsersModule — preferences endpoints #4/#5 + `PreferenceService` invariants; phase-3 UsersModule — saved-location CRUD/reorder/default endpoints #6–#11).
+1. **`PrismaModule` + `ConfigModule` + backend dependencies.** Add the approved runtime deps; create
+   the global `PrismaModule`/`PrismaService` (extends the Phase 2 `PrismaClient`, connects in
+   `onModuleInit`) and the global `ConfigModule` (OpenWeather key/base URL, DB URL, CORS origin,
+   `UseMockWhenMissing`). Verifiable: the app boots, injects both, and `npm run build`/`lint`/`test`
+   stay green.
+2. **App-shell cross-cutting: health, prefix, CORS, validation.** Author `HealthController`
+   (`GET /health`) and wire the authoritative global prefix `api` **excluding** `health`, CORS for
+   `http://localhost:4200`, and the global `ValidationPipe` in `main.ts`. Verifiable: `/health` returns
+   the §0.2 body outside the `api` prefix and an unknown-field request body is rejected.
+3. **`WeatherModule` — OpenWeather + Mock + caching (endpoints #2, #3).** Implement `WeatherController`,
+   the `WEATHER_SERVICE` token, `OpenWeatherService` (geocoding + one-call, unit/ZIP/timezone handling,
+   condition→Unsplash map, 7/5/3/4 shaping with `trend` arrays), `MockWeatherService` fallback, and the
+   in-memory cache TTLs. Verifiable: `/api/weather/dashboard` and `/api/weather/locations` return
+   contract-shaped JSON, key-less requests fall back to mock data, and a cache hit returns the same
+   payload.
+4. **`UsersModule` — preferences (endpoints #4, #5) + `PreferenceService` core.** Implement the
+   Prisma-backed `PreferenceService` with auto-create-on-first-read, plus `GET`/`PUT`
+   `/api/users/{userId}/preferences`. Verifiable: first read creates an `imperial` row; `PUT` updates
+   the unit system and returns the `UserPreferences` shape.
+5. **`UsersModule` — saved-location CRUD, reorder, set-default (endpoints #6–#11).** Implement list
+   (ordered by `sortOrder`), create, update, delete, set-default, and reorder — enforcing
+   single-default-per-user, `(userId, name, region)` dedupe, and contiguous-`sortOrder` rewrite, with
+   `Decimal`→`number` conversion at the boundary and `204 No Content` responses. Verifiable: all six
+   endpoints honour the invariants and return the §0.2 status codes/shapes.
 
 ### Phase 4 — Frontend (Angular) (3–4 days)
 Decompose the monolithic `App.vue` into standalone components while keeping **identical DOM + class names** (so the ported CSS just works):
