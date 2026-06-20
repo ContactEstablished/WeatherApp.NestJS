@@ -524,6 +524,14 @@ no service-layer logic.
 
 ### Phase 3 — Backend (NestJS) (2–3 days)
 
+> _**Shipped 2026-06-20.** Closed out after Tasks 3-1…3-5 landed on
+> `claude/phase3-prompt-execution-e0hbuf` (`dd2e089` PrismaModule/ConfigModule + backend deps;
+> `92df376` `/health` + prefix/CORS/ValidationPipe; `abaf1b6` WeatherModule; `4c3be1a` UsersModule
+> preferences; `608b838` saved-location CRUD/reorder/set-default). All 11 §0.2 endpoints serve the
+> contract shapes (`/health` outside `/api`, #7-#11 return `204`), the four §0.4 invariants hold,
+> `latitude`/`longitude` serialize as JSON `number`, and `npm run build` / `npm run lint` / `npm test`
+> are green across the workspace. See `docs/handoffs/Phase-3-Handoff.md`._
+>
 > _Normalized 2026-06-20: expanded from a thin module/provider bullet list into the pipeline's required
 > shape. Verified against the repo: `apps/api` is the Phase 0 Nest scaffold — `apps/api/src/main.ts`
 > ships the Nx-default `app.setGlobalPrefix('api')` (Phase 0 handoff §4 left this as-is; Phase 3 owns
