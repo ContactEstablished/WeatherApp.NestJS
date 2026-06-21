@@ -1,0 +1,8 @@
+<nav class="nav-list">
+  @for (item of navItems; track item.label) {
+    <a href="#" class="nav-list__item" [ngClass]="{ 'is-active': item.active }">
+      <lucide-icon [img]="item.icon" [size]="18"></lucide-icon>
+      <span>{{ item.label }}</span>
+    </a>
+  }
+</nav>

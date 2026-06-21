@@ -1,0 +1,61 @@
+@if (store.savedLocations().length > 0) {
+  <section class="saved-locations" aria-label="Saved locations">
+    <header>
+      <span>Saved</span>
+    </header>
+    @for (location of store.savedLocations(); track location.name + location.region; let i = $index) {
+      <article
+        class="saved-location-row"
+        [ngClass]="{ 'is-default': location.isDefault }"
+      >
+        <button
+          type="button"
+          class="saved-location-row__main"
+          (click)="store.chooseLocation(location)"
+        >
+          <lucide-icon [img]="MapPin" [size]="16"></lucide-icon>
+          <span>
+            <strong>{{ location.name }}</strong>
+            <em>{{ location.region }}</em>
+          </span>
+        </button>
+        <button
+          type="button"
+          class="saved-location-row__icon"
+          [disabled]="i === 0 || store.updatingLocationId() === location.id"
+          [attr.aria-label]="'Move ' + location.name + ' up'"
+          (click)="store.moveSavedLocation(location, i, -1)"
+        >
+          <lucide-icon [img]="ArrowUp" [size]="14"></lucide-icon>
+        </button>
+        <button
+          type="button"
+          class="saved-location-row__icon"
+          [disabled]="i === store.savedLocations().length - 1 || store.updatingLocationId() === location.id"
+          [attr.aria-label]="'Move ' + location.name + ' down'"
+          (click)="store.moveSavedLocation(location, i, 1)"
+        >
+          <lucide-icon [img]="ArrowDown" [size]="14"></lucide-icon>
+        </button>
+        <button
+          type="button"
+          class="saved-location-row__icon"
+          [disabled]="location.isDefault || store.updatingLocationId() === location.id"
+          [attr.aria-label]="'Make ' + location.name + ' default'"
+          (click)="store.makeDefaultLocation(location)"
+        >
+          <lucide-icon [img]="Star" [size]="14"></lucide-icon>
+        </button>
+        <button
+          type="button"
+          class="saved-location-row__icon"
+          [disabled]="store.updatingLocationId() === location.id"
+          [attr.aria-label]="'Remove ' + location.name"
+          (click)="store.removeSavedLocation(location)"
+        >
+          <lucide-icon [img]="Trash2" [size]="14"></lucide-icon>
+        </button>
+      </article>
+    }
+  </section>
+}
