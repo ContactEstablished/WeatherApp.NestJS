@@ -1,0 +1,22 @@
+@if (store.loading()) {
+  <section class="loading-panel">
+    <lucide-icon [img]="Zap" [strokeWidth]="1.8"></lucide-icon>
+    <span>Loading live dashboard...</span>
+  </section>
+}
+@if (!store.loading() && store.error()) {
+  <section class="loading-panel loading-panel--error">
+    <lucide-icon [img]="ShieldAlert" [strokeWidth]="1.8"></lucide-icon>
+    <span>{{ store.error() }}</span>
+    <button type="button" (click)="store.loadDashboard()">Retry</button>
+  </section>
+}
+@if (!store.loading() && !store.error() && store.dashboard()) {
+  <section class="dashboard-grid">
+    <app-hero-weather></app-hero-weather>
+    <app-preview-row></app-preview-row>
+    <app-hourly-panel></app-hourly-panel>
+    <app-forecast-panel></app-forecast-panel>
+    <app-metric-stack></app-metric-stack>
+  </section>
+}

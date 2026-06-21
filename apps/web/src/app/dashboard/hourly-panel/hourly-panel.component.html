@@ -1,0 +1,16 @@
+<section class="panel hourly-panel">
+  <header>
+    <h2>Hourly Forecast</h2>
+    <button type="button">View All</button>
+  </header>
+  <div class="hourly-strip">
+    @for (hour of store.dashboard()!.hourly; track hour.label) {
+      <article class="hour-card" [class.is-now]="hour.label === 'Now'">
+        <span>{{ hour.label }}</span>
+        <app-weather-icon [condition]="hour.condition" size="md"></app-weather-icon>
+        <strong>{{ hour.temperature }}&deg;</strong>
+        <small>{{ hour.windSpeed }} {{ store.dashboard()!.windUnit }}</small>
+      </article>
+    }
+  </div>
+</section>

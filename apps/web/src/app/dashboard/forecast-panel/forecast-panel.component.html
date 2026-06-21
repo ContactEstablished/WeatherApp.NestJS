@@ -1,0 +1,29 @@
+<section class="panel forecast-panel">
+  <header>
+    <h2>5-Day Forecast</h2>
+    <button type="button">View All</button>
+  </header>
+  <div class="daily-list">
+    @for (day of store.dashboard()!.daily; track day.date) {
+      <article class="daily-row">
+        <span class="daily-row__date">
+          <strong>{{ day.day }}</strong>
+          <small>{{ store.formatShortDate(day.date) }}</small>
+        </span>
+        <app-weather-icon [condition]="day.condition" size="sm"></app-weather-icon>
+        <span class="daily-row__condition">{{ day.condition }}</span>
+        <span class="daily-row__rain">
+          <lucide-icon [img]="Droplet" [strokeWidth]="1.8"></lucide-icon>
+          {{ day.precipitationChance }}%
+        </span>
+        <span class="daily-row__range">
+          <strong>{{ day.high }}&deg;</strong>
+          <i>
+            <b [style.width]="rangeBarWidth(day.high)"></b>
+          </i>
+          <em>{{ day.low }}&deg;</em>
+        </span>
+      </article>
+    }
+  </div>
+</section>

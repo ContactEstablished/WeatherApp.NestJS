@@ -1,0 +1,5 @@
+<section class="metric-stack" aria-label="Weather metrics">
+  @for (metric of store.dashboard()!.metrics; track metric.key) {
+    <app-metric-card [metric]="metric"></app-metric-card>
+  }
+</section>

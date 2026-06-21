@@ -1,0 +1,56 @@
+<article class="hero-weather"
+  [style.--hero-image]="'url(' + store.dashboard()!.current.backgroundImageUrl + ')'">
+  <div class="hero-weather__content">
+    <div class="hero-weather__location">
+      <span>
+        <lucide-icon [img]="Zap" [strokeWidth]="1.8"></lucide-icon>
+        {{ store.dashboard()!.current.location }}
+      </span>
+      <button
+        class="save-location-button"
+        type="button"
+        [class.is-saved]="store.activeSavedLocation() !== null"
+        [disabled]="store.savingLocation() || !!store.activeSavedLocation()"
+        [attr.aria-label]="store.activeSavedLocation() ? 'Location already saved' : 'Save location'"
+        (click)="store.saveActiveLocation()"
+      >
+        @if (store.activeSavedLocation()) {
+          <lucide-icon [img]="Star" [strokeWidth]="1.8"></lucide-icon>
+        }
+        @if (!store.activeSavedLocation()) {
+          <lucide-icon [img]="Plus" [strokeWidth]="1.8"></lucide-icon>
+        }
+      </button>
+    </div>
+    <p>{{ store.formattedObservedAt() }}</p>
+    <div class="hero-weather__temp">
+      <strong>{{ store.dashboard()!.current.temperature }}</strong>
+      <span>&deg;{{ store.dashboard()!.temperatureUnit }}</span>
+    </div>
+    <div class="hero-weather__condition">
+      <app-weather-icon [condition]="store.dashboard()!.current.condition" size="sm"></app-weather-icon>
+      <strong>{{ store.dashboard()!.current.condition }}</strong>
+    </div>
+    <p class="hero-weather__summary">
+      {{ store.dashboard()!.current.summary }}<br />
+      {{ store.dashboard()!.current.description }}
+    </p>
+    <div class="weather-facts">
+      <span>
+        <lucide-icon [img]="Thermometer" [strokeWidth]="1.8"></lucide-icon>
+        <small>Feels like</small>
+        <strong>{{ store.dashboard()!.current.feelsLike }}&deg;</strong>
+      </span>
+      <span>
+        <lucide-icon [img]="Sun" [strokeWidth]="1.8"></lucide-icon>
+        <small>Sunset</small>
+        <strong>{{ store.formatTime(store.dashboard()!.current.sunset) }}</strong>
+      </span>
+      <span>
+        <lucide-icon [img]="Moon" [strokeWidth]="1.8"></lucide-icon>
+        <small>Sunrise</small>
+        <strong>{{ store.formatTime(store.dashboard()!.current.sunrise) }}</strong>
+      </span>
+    </div>
+  </div>
+</article>

@@ -1,0 +1,15 @@
+<section class="preview-row" aria-label="Condition previews">
+  @for (preview of store.dashboard()!.previews; track preview.condition) {
+    <article class="preview-card">
+      <app-weather-icon [condition]="preview.condition" size="xl"></app-weather-icon>
+      <strong>{{ preview.condition }}</strong>
+      <span>{{ preview.high }}&deg; / {{ preview.low }}&deg;</span>
+      <p>{{ preview.description }}</p>
+    </article>
+  }
+  <div class="carousel-dots" aria-hidden="true">
+    <span class="is-active"></span>
+    <span></span>
+    <span></span>
+  </div>
+</section>
