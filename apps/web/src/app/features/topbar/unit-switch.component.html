@@ -1,0 +1,16 @@
+<div class="unit-switch" aria-label="Temperature units">
+  <button
+    type="button"
+    [class.is-active]="store.unitSystem() === 'imperial'"
+    (click)="store.changeUnits('imperial')"
+  >
+    &deg;F
+  </button>
+  <button
+    type="button"
+    [class.is-active]="store.unitSystem() === 'metric'"
+    (click)="store.changeUnits('metric')"
+  >
+    &deg;C
+  </button>
+</div>

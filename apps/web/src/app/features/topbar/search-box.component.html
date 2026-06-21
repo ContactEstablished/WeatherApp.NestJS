@@ -1,0 +1,27 @@
+<form class="search-box" (submit)="$event.preventDefault(); store.loadDashboard()">
+  <lucide-icon [img]="Search" [strokeWidth]="1.9" />
+  <input
+    [value]="store.search()"
+    placeholder="Search for a city, state, or ZIP..."
+    (input)="store.onSearchInput($any($event.target).value)"
+    (focus)="store.searchFocused.set(true)"
+    (keydown.escape)="store.searchFocused.set(false)"
+  />
+  <kbd>Ctrl K</kbd>
+  @if (store.showSuggestions()) {
+    <div class="search-suggestions">
+      @for (location of store.suggestions(); track location.name + '-' + location.region + '-' + location.latitude) {
+        <button
+          type="button"
+          (mousedown)="$event.preventDefault(); store.chooseLocation(location)"
+        >
+          <lucide-icon [img]="MapPin" [strokeWidth]="1.7" />
+          <span>
+            <strong>{{ location.name }}</strong>
+            <em>{{ location.region }} {{ location.country }}</em>
+          </span>
+        </button>
+      }
+    </div>
+  }
+</form>
