@@ -1,0 +1,17 @@
+<svg class="sparkline" viewBox="0 0 132 46" role="img" aria-label="metric trend">
+  @if (variant() === 'bars') {
+    <g class="sparkline-bars">
+      @for (bar of bars(); track $index) {
+        <rect
+          [attr.x]="bar.x"
+          [attr.y]="bar.y"
+          [attr.width]="bar.width"
+          [attr.height]="bar.height"
+          [attr.rx]="bar.rx"
+        />
+      }
+    </g>
+  } @else {
+    <path [attr.d]="linePath()" />
+  }
+</svg>

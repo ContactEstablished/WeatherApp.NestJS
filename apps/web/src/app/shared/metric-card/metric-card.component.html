@@ -1,0 +1,11 @@
+<article class="metric-card">
+  <div class="metric-card__icon">
+    <lucide-icon [img]="icon()" [strokeWidth]="1.8" />
+  </div>
+  <div class="metric-card__body">
+    <span>{{ metric().label }}</span>
+    <strong>{{ metric().value }}<small>{{ metric().unit }}</small></strong>
+    <em>{{ metric().hint }}</em>
+  </div>
+  <app-sparkline [values]="metric().trend" [variant]="sparklineVariant()" />
+</article>
