@@ -30,6 +30,18 @@ docs/
 ## Commands
 
 ```bash
+# Local dev setup (first run or fresh checkout)
+docker compose up -d    # start the Postgres db service (healthy when pg_isready passes)
+npx prisma migrate dev  # apply the committed init migration
+                        # (use migrate deploy for production/Phase 7)
+
+# Start both servers
+npm run dev             # NestJS on http://localhost:3000 + Angular on http://localhost:4200
+
+# Or start individually in separate terminals
+npx nx serve api        # NestJS on http://localhost:3000
+npx nx serve web        # Angular on http://localhost:4200 (proxies /api and /health to :3000)
+
 # Build all projects
 npm run build           # or: npx nx run-many -t build
 
@@ -39,10 +51,6 @@ npm test -- <pattern>   # run a single test file
 
 # Lint
 npm run lint            # ESLint across all projects
-
-# Dev servers (run in separate terminals)
-npx nx serve api        # NestJS on http://localhost:3000
-npx nx serve web        # Angular on http://localhost:4200 (proxies /api and /health to :3000)
 ```
 
 ## Configuration
@@ -54,6 +62,7 @@ Required variables for the API:
 |----------|---------|---------|
 | `DATABASE_URL` | PostgreSQL connection string | (required) |
 | `OPENWEATHER_API_KEY` | OpenWeather API key | (optional — mock data if absent) |
+| `OPENWEATHER_BASE_URL` | OpenWeather API base URL | `https://api.openweathermap.org` |
 | `CORS_ORIGIN` | Allowed CORS origin | `http://localhost:4200` |
 | `PORT` | API listen port | `3000` |
 
