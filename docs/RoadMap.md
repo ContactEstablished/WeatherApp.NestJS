@@ -676,6 +676,19 @@ validation — and that runs out of the box with no API key by falling back to m
 
 ### Phase 4 — Frontend (Angular) (3–4 days)
 
+> _**Shipped 2026-06-21.** Closed out after Tasks 4-1…4-6 landed on `main`
+> (`f09f5ae` `WeatherApiService` + `HttpClient` + `environment.ts` + dev proxy; `a4f1d32` signals
+> `WeatherStore` + RxJS debounced search + boot sequence; `67039c7` reusable icon/sparkline/metric
+> components + global styles; `c91a25e` shell + sidebar tree; `af962dd` topbar tree; `7a54140`
+> dashboard tree). The full Angular 21 frontend renders in `apps/web` with the source DOM/class names
+> ported verbatim, a signals `WeatherStore` over `@nimbus/shared-types`, a `WeatherApiService`
+> covering all 11 §0.2 endpoints (`provideHttpClient()` registered), the 250 ms debounced search, the
+> ~1,148-line `styles.scss` port, `lucide-angular` v1.0.0 icons, and the "Nimbus Weather" title +
+> CloudLightning `favicon.svg`. `apps/web/proxy.conf.json` forwards `/api` + `/health` to `:3000`
+> (wired via `serve.configurations.development`). `npm run build` / `npm run lint` / `npm test` are
+> green across the workspace. See `docs/handoffs/Phase-4-Handoff.md`. The historical plan is preserved
+> below._
+>
 > _Normalized 2026-06-20: expanded from a thin component/state bullet list into the pipeline's required
 > shape. Verified against the repo: `apps/web` is the Phase 0 Angular **standalone** scaffold — `src/main.ts`
 > bootstraps `App` via `bootstrapApplication`, `src/app/app.config.ts` provides **only**
@@ -799,8 +812,8 @@ the persisted °F/°C toggle.
   via `@nimbus/shared-types`; `provideHttpClient()` is registered in `app.config.ts`.
 - The ported `apps/web/src/styles.scss` reproduces the §0.5 design system (dark-only, the documented
   tokens, the 1500/980/640px responsive breakpoints) on the cloned DOM/class names; the result is a
-  near-pixel match to the source (compare to the §5 QA screenshots `qa-desktop.png` / `qa-tablet.png` /
-  `qa-mobile.png` / `qa-search.png`).
+  near-pixel match to the source (compare to the §5 QA screenshots `qa-desktop.png` / `qa-tablet.png`
+  / `qa-mobile.png` / `qa-search.png`).
 - `index.html` shows the title **"Nimbus Weather"** with the CloudLightning `favicon.svg`; `lucide-angular`
   renders the condition icons per the `WeatherIconComponent` map; the `SparklineComponent` renders the
   132×46 `line`/`bars` SVG variants.
@@ -846,9 +859,156 @@ the persisted °F/°C toggle.
    and the document title/favicon match.
 
 ### Phase 5 — Dev workflow (½ day)
-- `nx serve api` (port 3000) + `nx serve web` (port 4200) — or `nx run-many -t serve`. Add an npm `dev` script.
-- Local Postgres: `docker compose up -d db`; apply schema with `npx prisma migrate dev`; seeding optional.
-- `.env.example` documents `OPENWEATHER_API_KEY` and notes the app runs with mock data when it is absent.
+
+> _Normalized 2026-06-22: expanded from a thin three-bullet stub into the pipeline's required shape.
+> **Verified against the repo at time of writing:**_
+> - _`docker-compose.yml` **already exists** (authored in Phase 0) with a single `db` service —
+>   `image: postgres:16`, user/password/db all `nimbus`, port `5432:5432`, a `postgres_data` named
+>   volume, and a `pg_isready` healthcheck. **No new compose authoring is required** — Phase 5 verifies
+>   it and runs `prisma migrate` against it._
+> - _`.env.example` **already documents all five variables** — `DATABASE_URL`
+>   (`postgresql://nimbus:nimbus@localhost:5432/nimbus?schema=public`, matching the compose credentials),
+>   `OPENWEATHER_API_KEY` (blank, with the mock-fallback note), `OPENWEATHER_BASE_URL`, `CORS_ORIGIN`,
+>   and `PORT=3000`. The Phase 3 handoff already added `OPENWEATHER_BASE_URL` + `CORS_ORIGIN`; the
+>   `DATABASE_URL` entry is present. So `.env.example` work is **confirm-and-reconcile**, not authoring._
+> - _`prisma/seed.ts` is the Phase 2 **stub** (empty `main()`, commented `anonymous` upsert) and
+>   `package.json` already carries `prisma.seed = "ts-node prisma/seed.ts"`; the seed has **not** been run._
+> - _`prisma/migrations/20260620144720_init/migration.sql` (the Phase 2 `init` migration) is committed._
+> - _`package.json` `scripts` are **only** `build`/`lint`/`test`, each `nx run-many -t <target>` — there
+>   is **no `dev` script**, and **no `concurrently` dependency** (the established pattern is `nx run-many`)._
+> - _`apps/web/proxy.conf.json` forwards `/api` + `/health` to `http://localhost:3000` (Phase 4), but per
+>   the Phase 4 handoff §6 it was **never exercised at runtime** — confirming the proxy end-to-end is a
+>   Phase 5 deliverable._
+> - _Phases 1–4 are shipped on `main`; the API + frontend are code-complete. Phase 5 is pure dev-workflow
+>   ergonomics + a first end-to-end local boot — **no `apps/`, `libs/`, `prisma/schema.prisma`, or
+>   migration changes**._
+
+**Goal.** Make the full stack boot locally with one (or two) commands and confirm it runs end-to-end:
+add an npm `dev` script that serves the NestJS API (3000) and the Angular app (4200) together, run the
+committed Phase 2 migration against the Phase 0 `docker-compose` Postgres `db` service to prove it
+applies cleanly, run (or deliberately defer) the Phase 2 seed stub, reconcile `.env.example` as the
+single documented source of every env var, and verify the Phase 4 dev proxy forwards `/api` + `/health`
+to the API at runtime. The deliverable is a documented, repeatable local-dev loop — **no application
+code, schema, or migration changes**.
+
+**Scope (in scope).**
+- **Add an npm `dev` script.** A `package.json` `"dev"` script that serves `apps/api` (3000) and
+  `apps/web` (4200) together, following the established `nx run-many` pattern already used by
+  `build`/`lint`/`test` (e.g. `nx run-many -t serve` or `nx run-many -t serve -p api web`). No new
+  dependency (see Decisions — `concurrently` is **not** added).
+- **Confirm the local Postgres comes up.** `docker compose up -d` (the existing `db` service:
+  `postgres:16`, `nimbus`/`nimbus`/`nimbus`, `5432`, `postgres_data` volume, `pg_isready` healthcheck).
+  Verify the container reports healthy. **No compose edits** — the service already exists from Phase 0.
+- **Apply the Phase 2 migration against the live DB.** Run the chosen `prisma migrate` command (see
+  Decisions) against the `docker-compose` Postgres so `prisma/migrations/20260620144720_init/` applies
+  cleanly and `npx prisma migrate status` reports the one migration applied with **no drift**.
+- **Run or defer the seed (decision below).** The Phase 2 `prisma/seed.ts` stub + `package.json`
+  `prisma.seed` hook are wired; Phase 2 explicitly deferred *execution* to Phase 5. Either run
+  `npx prisma db seed` (the stub is a no-op today) or document why it stays unrun — make the call
+  explicit either way.
+- **Reconcile `.env.example` as the single documented source.** Confirm `.env.example` documents all
+  five vars (`DATABASE_URL`, `OPENWEATHER_API_KEY`, `OPENWEATHER_BASE_URL`, `CORS_ORIGIN`, `PORT`) with
+  the `DATABASE_URL` credentials matching the compose `db` service and the no-key mock-fallback note
+  present. This is **confirm/tidy**, not authoring — the file already carries all five (per the §
+  verification note); fix only genuine gaps or drift against `docker-compose.yml`.
+- **Verify the dev proxy end-to-end (Phase 4 carry-through).** With the `dev` script running, confirm
+  `apps/web/proxy.conf.json` forwards `/api` (e.g. `/api/weather/dashboard`) **and** `/health` from the
+  Angular dev server (4200) to the API (3000) — the runtime check the Phase 4 handoff §6 flagged as
+  unperformed.
+- **Document the local-dev loop.** A short, accurate "run it locally" note (where it lives — README or
+  `CLAUDE.md` "Commands" — is a decision below) covering: `docker compose up -d` → migrate → `npm run
+  dev`, and the no-key mock-data behavior.
+
+> **Constraint — dev-workflow ergonomics only; no app/schema changes.** This phase touches
+> `package.json` (the `dev` script), `.env.example` (reconcile only), and a docs/run-it-locally note.
+> It writes **no** code in `apps/api`, `apps/web`, or `libs/shared-types`, and **no** changes to
+> `prisma/schema.prisma` or `prisma/migrations/` (those are read-only from Phases 2–4). Running
+> `prisma migrate`/`db seed` *applies* the existing migration/seed — it does not author new ones.
+
+> **Constraint — `migrate dev` vs `migrate deploy` is a local-vs-deploy choice (Decision below).**
+> Use `migrate dev` for the local developer loop; `migrate deploy` is the Phase 7 container-startup
+> path. Do not introduce a *new* migration here — the `init` migration is already committed; this phase
+> only applies it.
+
+**Decisions needed.**
+- **`dev` script mechanism — `nx run-many -t serve` vs `concurrently`.** *Recommendation:*
+  **`nx run-many -t serve` (no new dependency).** It matches the existing `build`/`lint`/`test` scripts
+  (all `nx run-many`), and Nx already runs targets in parallel with interleaved, labelled output — so
+  `concurrently` would add a dependency for capability Nx already provides. Use
+  `"dev": "nx run-many -t serve"` (or `-p api web` to pin the two projects). Reach for `concurrently`
+  only if non-Nx processes need orchestrating, which they do not here.
+- **`migrate dev` vs `migrate deploy` for local setup.** *Recommendation:* **`npx prisma migrate dev`**
+  for the documented local loop — it applies pending migrations, regenerates the client, and warns on
+  drift, which is what a developer wants on first checkout. Reserve `migrate deploy` (no client
+  regen, no dev prompts) for the Phase 7 container entrypoint (`api` Dockerfile runs `migrate deploy`).
+  Document both: `migrate dev` here, `migrate deploy` as the deploy-time note pointing forward to Phase 7.
+- **Run the seed or leave it stubbed.** *Recommendation:* **wire `npm run dev` to assume an empty DB and
+  leave the seed unrun, but verify `npx prisma db seed` executes cleanly** (the stub is a no-op so it is
+  safe to run). The Phase 3 §0.4 `getPreferences` auto-creates the `anonymous` `imperial` row on first
+  read, so the app needs **no** seeded data to boot and exercise every flow; running the (empty) seed
+  buys nothing today. Document that the seed hook exists and `db seed` is the entrypoint if a starter
+  row is wanted later (e.g. Phase 6 fixtures). Leave `prisma/seed.ts` as the stub — **do not author seed
+  data here** (that would be a content decision beyond dev-workflow scope).
+- **Docker Compose vs bare Postgres for local dev.** *Recommendation:* **Docker Compose `db` service**
+  (already present) — one command (`docker compose up -d`) brings up a pinned `postgres:16` with the
+  exact credentials `.env.example`'s `DATABASE_URL` expects, so no developer needs a system Postgres.
+  This is effectively already decided by Phase 0; Phase 5 just adopts it as *the* documented path.
+- **Where the "run it locally" note lives.** *Recommendation:* the repo's `CLAUDE.md` already has a
+  **Commands** section listing `nx serve api`/`nx serve web`; fold the `dev` script + `docker compose up
+  -d` + `migrate dev` steps in there (and/or the README). Pick one canonical home to avoid drift.
+  **Editing `CLAUDE.md` is a conventions-doc edit — confirm before applying.**
+
+**Out of scope (deferred).**
+- **Production build / Dockerfiles / nginx / CI** — `nx build web`/`nx build api`, the `api` Dockerfile
+  (`migrate deploy` then start), the `web` nginx image, the `db`+`api`+`web` prod compose, and GitHub
+  Actions are **Phase 7 (Build & deploy)**. Phase 5 is the *local dev* loop only.
+- **Authoring seed data** — `prisma/seed.ts` stays the Phase 2 stub; writing real seed content (sample
+  saved locations, etc.) is not in scope. Running the existing (no-op) seed to prove the hook works is
+  in scope; *adding rows* is not.
+- **New migrations / schema changes** — the `init` migration is applied, not modified; any schema change
+  is an approval-gated Phase 2-style migration, not a Phase 5 concern.
+- **Automated tests (incl. the Testcontainers DB)** — `PreferenceService` integration tests against a
+  disposable Postgres and the `OpenWeatherService` mocked-HTTP tests are **Phase 6 (Testing)**. Phase 5
+  keeps `npm test` green but adds no specs; the dev `db` service is for *manual* local runs, not the
+  test harness.
+- **Application / contract / UI code** — `apps/api`, `apps/web`, and `libs/shared-types` are consumed
+  as-shipped from Phases 1–4; Phase 5 changes none of them.
+
+**Success criteria.**
+- `package.json` has a `dev` script that brings up **both** servers — `nx serve api` on 3000 and
+  `nx serve web` on 4200 — in one invocation (`npm run dev`), with no new runtime/dev dependency added
+  (no `concurrently` in `package.json`).
+- `docker compose up -d` brings the `db` service to a healthy state, and `npx prisma migrate dev`
+  applies the committed `init` migration cleanly — `npx prisma migrate status` reports **1 migration
+  applied, no drift** against the `docker-compose` Postgres.
+- The seed decision is executed and documented: either `npx prisma db seed` runs cleanly (no-op stub)
+  or the entry records why it stays unrun, and the `prisma.seed` hook is confirmed wired.
+- With `npm run dev` running, the Phase 4 proxy is confirmed end-to-end: a request to
+  `http://localhost:4200/api/weather/dashboard?location=San%20Francisco,%20CA&unitSystem=imperial&userId=anonymous`
+  returns a full `WeatherDashboard` (mock data with no `OPENWEATHER_API_KEY`), and
+  `http://localhost:4200/health` returns the §0.2 health body — both proxied to `:3000`.
+- `.env.example` is confirmed to document all five vars with `DATABASE_URL` matching the compose `db`
+  credentials and the no-key mock-fallback note present (gaps/drift fixed; no spurious rewrite).
+- The local-dev loop is documented in one canonical place (`CLAUDE.md` Commands and/or README):
+  `docker compose up -d` → `npx prisma migrate dev` → `npm run dev`, plus the no-key mock-data note.
+- `npm run build` / `npm run lint` / `npm test` stay green (the `dev` script and any docs edits
+  introduce no regressions).
+
+**Enumerated task split** — `S` · 2 task docs (phase-5 npm `dev` script + `.env.example` reconcile + local-dev docs note; phase-5 local DB bring-up — `migrate dev` + seed decision + end-to-end proxy verification).
+1. **`dev` script + `.env.example` reconcile + local-dev docs.** Add the `package.json` `"dev"` script
+   (`nx run-many -t serve`, no new dependency); reconcile `.env.example` against `docker-compose.yml`
+   (confirm all five vars, `DATABASE_URL` credentials match the `db` service, mock-fallback note
+   present — fix only genuine drift); document the `docker compose up -d` → `migrate dev` → `npm run dev`
+   loop in the chosen canonical doc (**`CLAUDE.md` edit confirmed before applying**). Verifiable:
+   `npm run dev` is defined and starts both servers, `.env.example` matches the compose credentials,
+   and the run-it-locally note is present; `npm run build`/`lint`/`test` stay green.
+2. **Local DB bring-up, migration apply, seed decision, and end-to-end proxy check.** `docker compose
+   up -d` to a healthy `db`; `npx prisma migrate dev` to apply the committed `init` migration
+   (`migrate status` → 1 applied, no drift); execute the seed decision (run the no-op `db seed` or
+   document the deferral); then with `npm run dev` up, confirm the Phase 4 proxy forwards
+   `/api/weather/dashboard` (full `WeatherDashboard`, mock data key-less) **and** `/health` from 4200 to
+   the API on 3000. Verifiable: `migrate status` is clean, the seed call is resolved, and both proxied
+   routes return their §0.2 shapes.
 
 ### Phase 6 — Testing (1–2 days)
 Port the existing xUnit coverage to **Jest** (the Nx default):
