@@ -860,6 +860,16 @@ the persisted °F/°C toggle.
 
 ### Phase 5 — Dev workflow (½ day)
 
+> _**Shipped 2026-06-23.** Closed out after Tasks 5-1 and 5-2 landed on `main`
+> (`989d920` dev script + CLAUDE.md local-dev loop + Configuration table fix;
+> `a89925d` seed hook ESM fix + migration apply + end-to-end proxy verification).
+> `npm run dev` starts NestJS on `:3001` and Angular on `:4200` (port `:3001` is
+> machine-specific — Docker Desktop occupies `:3000` on this machine; `.env.example`
+> retains `PORT=3000` as the default). `npx prisma migrate status` reports 1 migration
+> applied, no drift. The Phase 4 proxy forwards `/api/weather/dashboard` and `/health`
+> from `:4200` to the API, returning the correct §0.2 shapes with mock data.
+> See `docs/handoffs/Phase-5-Handoff.md`. The historical plan is preserved below._
+>
 > _Normalized 2026-06-22: expanded from a thin three-bullet stub into the pipeline's required shape.
 > **Verified against the repo at time of writing:**_
 > - _`docker-compose.yml` **already exists** (authored in Phase 0) with a single `db` service —
