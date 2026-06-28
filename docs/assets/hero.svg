@@ -1,0 +1,88 @@
+<svg width="1200" height="380" viewBox="0 0 1200 380" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Nimbus — a weather app built with NestJS and Angular">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b1f4d"/>
+      <stop offset="0.45" stop-color="#1d4ed8"/>
+      <stop offset="1" stop-color="#38bdf8"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#fde68a"/>
+      <stop offset="0.55" stop-color="#fbbf24"/>
+      <stop offset="1" stop-color="#fbbf24" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="cloud" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#dbeafe"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+  </defs>
+
+  <!-- sky -->
+  <rect width="1200" height="380" rx="20" fill="url(#sky)"/>
+
+  <!-- stars (upper band) -->
+  <g fill="#ffffff" opacity="0.65">
+    <circle cx="120" cy="48" r="1.6"/>
+    <circle cx="260" cy="34" r="1.1"/>
+    <circle cx="410" cy="60" r="1.4"/>
+    <circle cx="560" cy="30" r="1"/>
+    <circle cx="690" cy="52" r="1.5"/>
+    <circle cx="980" cy="40" r="1.2"/>
+    <circle cx="1080" cy="66" r="1.6"/>
+    <circle cx="1140" cy="34" r="1.1"/>
+  </g>
+
+  <!-- sun glow -->
+  <circle cx="960" cy="150" r="180" fill="url(#sun)"/>
+  <circle cx="960" cy="150" r="58" fill="#fde68a"/>
+
+  <!-- rain streaks -->
+  <g stroke="#bfdbfe" stroke-width="3" stroke-linecap="round" opacity="0.55">
+    <line x1="250" y1="250" x2="238" y2="290"/>
+    <line x1="300" y1="262" x2="288" y2="302"/>
+    <line x1="350" y1="252" x2="338" y2="292"/>
+    <line x1="220" y1="270" x2="208" y2="306"/>
+  </g>
+
+  <!-- clouds -->
+  <g filter="url(#soft)" opacity="0.35">
+    <ellipse cx="1010" cy="300" rx="150" ry="40" fill="#1e3a8a"/>
+  </g>
+  <g fill="url(#cloud)">
+    <path d="M150 235
+      a46 46 0 0 1 88 -14
+      a38 38 0 0 1 64 26
+      a34 34 0 0 1 -8 67
+      H188
+      a44 44 0 0 1 -38 -79 Z"/>
+    <path d="M860 250
+      a40 40 0 0 1 77 -12
+      a32 32 0 0 1 55 22
+      a30 30 0 0 1 -7 58
+      H892
+      a38 38 0 0 1 -32 -68 Z" opacity="0.95"/>
+  </g>
+
+  <!-- wordmark -->
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+    <text x="80" y="150" font-size="92" font-weight="800" fill="#ffffff" letter-spacing="-2">Nimbus</text>
+    <text x="84" y="196" font-size="27" font-weight="500" fill="#e0f2fe">A weather app, reimagined on NestJS &amp; Angular.</text>
+
+    <!-- stack chips -->
+    <g font-size="17" font-weight="600">
+      <rect x="84" y="226" width="118" height="34" rx="17" fill="#ffffff" fill-opacity="0.14"/>
+      <text x="143" y="248" fill="#ffffff" text-anchor="middle">NestJS</text>
+
+      <rect x="212" y="226" width="120" height="34" rx="17" fill="#ffffff" fill-opacity="0.14"/>
+      <text x="272" y="248" fill="#ffffff" text-anchor="middle">Angular 21</text>
+
+      <rect x="342" y="226" width="92" height="34" rx="17" fill="#ffffff" fill-opacity="0.14"/>
+      <text x="388" y="248" fill="#ffffff" text-anchor="middle">Prisma</text>
+
+      <rect x="444" y="226" width="120" height="34" rx="17" fill="#ffffff" fill-opacity="0.14"/>
+      <text x="504" y="248" fill="#ffffff" text-anchor="middle">Nx monorepo</text>
+    </g>
+  </g>
+</svg>
